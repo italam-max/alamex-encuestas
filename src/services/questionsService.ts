@@ -1,0 +1,115 @@
+import { supabase } from '../lib/supabase';
+import type { QuestionType } from '../types';
+
+export interface OptionDraft {
+  _key: string;
+  label: string;
+  value: string;
+}
+
+export interface QuestionDraft {
+  _key: string;
+  id?: string;
+  type: QuestionType;
+  title: string;
+  description: string;
+  required: boolean;
+  settings: Record<string, unknown>;
+  options: OptionDraft[];
+}
+
+export interface SectionDraft {
+  _key: string;
+  id?: string;
+  type: 'section';
+  title: string;
+  description: string;
+}
+
+export type BuilderBlock = QuestionDraft | SectionDraft;
+
+export function isSection(b: BuilderBlock): b is SectionDraft {
+  return b.type === 'section';
+}
+
+export function emptySection(): SectionDraft {
+  return { _key: makeKey(), type: 'section', title: '', description: '' };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+export const QuestionsService = {
+  async upsertForSurvey(surveyId: string, blocks: BuilderBlock[]) {
+    await db.from('questions').delete().eq('survey_id', surveyId);
+
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+
+      if (isSection(block)) {
+        const { error } = await db.from('questions').insert({
+          survey_id:   surveyId,
+          type:        'section',
+          title:       block.title || 'Nueva sección',
+          description: block.description || null,
+          required:    false,
+          order_index: i,
+          settings:    {},
+        });
+        if (error) throw error;
+        continue;
+      }
+
+      const { _key: _k, options, id: _id, ...qData } = block;
+      void _k; void _id;
+      const { data: newQ, error: qErr } = await db
+        .from('questions')
+        .insert({ ...qData, survey_id: surveyId, order_index: i })
+        .select()
+        .single();
+      if (qErr) throw qErr;
+
+      if (options.length > 0) {
+        const { error: oErr } = await db
+          .from('question_options')
+          .insert(
+            options.map((o: OptionDraft, oi: number) => ({
+              question_id: newQ.id,
+              label:       o.label,
+              value:       o.value || o.label.toLowerCase().replace(/\s+/g, '_'),
+              order_index: oi,
+            }))
+          );
+        if (oErr) throw oErr;
+      }
+    }
+  },
+};
+
+export function makeKey() {
+  return Math.random().toString(36).slice(2);
+}
+
+export function emptyQuestion(type: QuestionType = 'rating'): QuestionDraft {
+  return {
+    _key: makeKey(),
+    type,
+    title: '',
+    description: '',
+    required: true,
+    settings: defaultSettings(type),
+    options: type === 'multiple' || type === 'checkbox'
+      ? [{ _key: makeKey(), label: 'Opción 1', value: 'opcion_1' }]
+      : [],
+  };
+}
+
+export function defaultSettings(type: QuestionType): Record<string, unknown> {
+  if (type === 'rating')   return { max: 5, labels: { min: 'Muy malo', max: 'Excelente' } };
+  if (type === 'nps')      return {};
+  if (type === 'multiple') return { allowOther: false };
+  if (type === 'checkbox') return { allowOther: false };
+  if (type === 'text')     return { placeholder: '', multiline: false };
+  if (type === 'yesno')    return {};
+  return {};
+}

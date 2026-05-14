@@ -1,0 +1,303 @@
+@import "tailwindcss";
+
+/* ── Fuentes (idénticas al cotizador) ── */
+@import url('https://fonts.googleapis.com/css2?family=Special+Gothic&family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
+
+@theme {
+  --font-sans:    "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Special Gothic", "Syne", ui-sans-serif, sans-serif;
+
+  /* Paleta idéntica al cotizador */
+  --color-navy-950: #040D1A;
+  --color-navy-900: #0A1628;
+  --color-navy-800: #0F2040;
+  --color-navy-700: #152A52;
+  --color-navy-600: #1B3564;
+  --color-gold-300: #F3E5AB;
+  --color-gold-400: #EDD060;
+  --color-gold-500: #D4AF37;
+  --color-gold-600: #B5942E;
+  --color-gold-700: #8A6E20;
+
+  /* Fondo principal — crema idéntico al cotizador en modo claro */
+  --color-background: #F9F7F2;
+}
+
+@layer base {
+  :root {
+    --navy-950: #040D1A;
+    --navy-900: #0A1628;
+    --gold-500:  #D4AF37;
+    --gold-400:  #EDD060;
+    --gold-300:  #F3E5AB;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #F9F7F2;
+    color: #0A2463;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  #root { height: 100dvh; display: flex; flex-direction: column; }
+
+  /* Scrollbar dorada igual al cotizador */
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.5); }
+}
+
+@layer components {
+
+  /* Clase de fuente display (Special Gothic) */
+  .font-display { font-family: 'Special Gothic', sans-serif; }
+
+  /* Glass crema — para el contenido del área principal */
+  .luxury-glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Glass oscuro — para elementos sobre navy */
+  .glass {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* Patrón arabesco idéntico al cotizador */
+  .arabesque-pattern {
+    background-image:
+      linear-gradient(30deg,  rgba(212,175,55,0.04) 12%, transparent 12.5%, transparent 87%, rgba(212,175,55,0.04) 87.5%, rgba(212,175,55,0.04)),
+      linear-gradient(150deg, rgba(212,175,55,0.04) 12%, transparent 12.5%, transparent 87%, rgba(212,175,55,0.04) 87.5%, rgba(212,175,55,0.04)),
+      linear-gradient(30deg,  rgba(212,175,55,0.04) 12%, transparent 12.5%, transparent 87%, rgba(212,175,55,0.04) 87.5%, rgba(212,175,55,0.04)),
+      linear-gradient(150deg, rgba(212,175,55,0.04) 12%, transparent 12.5%, transparent 87%, rgba(212,175,55,0.04) 87.5%, rgba(212,175,55,0.04)),
+      linear-gradient(60deg,  rgba(212,175,55,0.06) 25%, transparent 25.5%, transparent 75%, rgba(212,175,55,0.06) 75%, rgba(212,175,55,0.06)),
+      linear-gradient(60deg,  rgba(212,175,55,0.06) 25%, transparent 25.5%, transparent 75%, rgba(212,175,55,0.06) 75%, rgba(212,175,55,0.06));
+    background-size: 40px 70px;
+    background-position: 0 0, 0 0, 20px 35px, 20px 35px, 0 0, 20px 35px;
+  }
+
+  /* Luz ambiental del fondo */
+  .ambient-light-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(10,36,99,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Botón primario dorado — idéntico al cotizador */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #D4AF37, #B5942E);
+    color: #051338;
+    font-family: 'Special Gothic', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s;
+  }
+  .btn-primary:hover::after  { transform: translateX(100%); }
+  .btn-primary:hover         { filter: brightness(1.08); }
+  .btn-primary:active        { transform: scale(0.97); }
+  .btn-primary:disabled      { opacity: 0.4; cursor: not-allowed; }
+
+  /* Botón ghost */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10,36,99,0.04);
+    border: 1px solid rgba(10,36,99,0.1);
+    color: rgba(10,36,99,0.65);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .btn-ghost:hover {
+    background: rgba(10,36,99,0.08);
+    color: #0A2463;
+    border-color: rgba(10,36,99,0.18);
+  }
+
+  /* Input base (modo claro) */
+  .input-base {
+    width: 100%;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(10,36,99,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    color: #0A2463;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-base:focus {
+    border-color: rgba(212,175,55,0.5);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+  }
+  .input-base::placeholder { color: rgba(10,36,99,0.35); }
+
+  /* Badges de estado para encuestas (modo claro) */
+  .badge-active {
+    background: rgba(16,185,129,0.1);
+    color: #065f46;
+    border: 1px solid rgba(16,185,129,0.25);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .badge-closed {
+    background: rgba(100,116,139,0.1);
+    color: #475569;
+    border: 1px solid rgba(100,116,139,0.2);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .badge-draft {
+    background: rgba(212,175,55,0.1);
+    color: #92400e;
+    border: 1px solid rgba(212,175,55,0.25);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Animaciones */
+  .animate-fade-in  { animation: fadeIn  0.4s ease-out both; }
+  .animate-slide-up { animation: slideUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+
+  /* ── Nav items del sidebar (reemplaza onMouseEnter/onMouseLeave) ── */
+  .nav-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: transparent;
+    box-shadow: none;
+    color: rgba(255,255,255,0.65);
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover:not(.nav-item--active) {
+    background: rgba(255,255,255,0.05);
+    color: white;
+  }
+  .nav-item--active {
+    background: rgba(212,175,55,0.08);
+    box-shadow: inset 3px 0 0 #D4AF37;
+    color: white;
+    font-weight: 600;
+  }
+  .nav-item__icon {
+    color: rgba(255,255,255,0.55);
+    flex-shrink: 0;
+  }
+  .nav-item--active .nav-item__icon { color: #D4AF37; }
+  .nav-item__label {
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.2s, opacity 0.2s;
+    flex: 1;
+    text-align: left;
+  }
+  .nav-item__chevron { color: rgba(212,175,55,0.5); flex-shrink: 0; }
+
+  /* ── Botones del header (reemplaza onMouseEnter/onMouseLeave) ── */
+  .header-logout-btn {
+    color: rgba(255,255,255,0.4);
+    transition: color 0.15s, background 0.15s;
+  }
+  .header-logout-btn:hover {
+    color: #f87171;
+    background: rgba(255,255,255,0.05);
+  }
+  .header-avatar {
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .header-avatar:hover {
+    border-color: #D4AF37;
+    box-shadow: 0 0 12px rgba(212,175,55,0.3);
+  }
+  .header-hamburger-btn {
+    color: rgba(255,255,255,0.7);
+    transition: color 0.15s, background 0.15s;
+  }
+  .header-hamburger-btn:hover {
+    color: white;
+    background: rgba(255,255,255,0.1);
+  }
+
+  /* ── Botón cerrar sidebar mobile ── */
+  .sidebar-close-btn {
+    color: rgba(255,255,255,0.4);
+    transition: color 0.15s, background 0.15s;
+  }
+  .sidebar-close-btn:hover {
+    color: white;
+    background: rgba(255,255,255,0.1);
+  }
+}
+
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Login — blobs y bounce (idénticos al cotizador) ── */
+@keyframes blob {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(20px, -30px) scale(1.08); }
+  66%  { transform: translate(-15px, 15px) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes bounceIn {
+  0%   { opacity: 0; transform: scale(0.9) translateY(-6px); }
+  60%  { opacity: 1; transform: scale(1.02) translateY(2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-blob       { animation: blob 8s infinite ease-in-out; }
+.animation-delay-2000 { animation-delay: 2s; }
+.animation-delay-4000 { animation-delay: 4s; }
+.animate-bounce-in  { animation: bounceIn 0.35s ease-out both; }

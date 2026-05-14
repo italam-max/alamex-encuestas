@@ -15,6 +15,9 @@ dist-ssr
 # Claude Code local settings
 .claude/
 
+# Supabase Edge Functions local secrets
+supabase/functions/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

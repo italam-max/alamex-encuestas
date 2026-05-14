@@ -4,7 +4,7 @@ import {
   ArrowLeft, Edit2, Send, MailOpen, MessageSquare,
   ChevronDown, ChevronUp, Loader2, Plus, X,
   CheckCircle, AlertCircle, Play, Archive, Star, BarChart2,
-  List, CheckSquare, Type, ToggleLeft,
+  List, CheckSquare, Type, ToggleLeft, Link2, Check,
 } from 'lucide-react';
 import { SurveysService } from '../../services/surveysService';
 import { DistributionsService, type DistributionStats } from '../../services/distributionsService';
@@ -99,7 +99,10 @@ export default function SurveyDetail() {
         <div className="flex items-center gap-2 shrink-0">
           <button className="btn-ghost" onClick={() => navigate(`/surveys/${id}/editar`)}><Edit2 size={14} />Editar</button>
           {survey.status === 'Activa' && (
-            <button className="btn-primary" onClick={() => setShowModal(true)}><Send size={14} />Enviar encuesta</button>
+            <>
+              <CopyLinkButton surveyId={id!} baseUrl={baseUrl} />
+              <button className="btn-primary" onClick={() => setShowModal(true)}><Send size={14} />Enviar por email</button>
+            </>
           )}
         </div>
       </div>
@@ -224,6 +227,7 @@ export default function SurveyDetail() {
       {showModal && (
         <SendModal
           surveyId={id!}
+          surveyTitle={survey.title}
           onClose={() => setShowModal(false)}
           onSent={() => { setShowModal(false); load(); }}
         />
@@ -289,9 +293,32 @@ function DistRow({ dist, baseUrl }: { dist: DistributionStats; baseUrl: string }
   );
 }
 
-function SendModal({ surveyId, onClose, onSent }: { surveyId: string; onClose: () => void; onSent: () => void }) {
-  const [subject,   setSubject]   = useState('');
-  const [message,   setMessage]   = useState('');
+/* ── Botón copiar link compartible ── */
+function CopyLinkButton({ surveyId, baseUrl }: { surveyId: string; baseUrl: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${baseUrl}/s/pub/${surveyId}`;
+  const copy = () => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={copy}
+      className="btn-ghost flex items-center gap-1.5"
+      title="Copiar link para WhatsApp / compartir"
+    >
+      {copied ? <Check size={14} className="text-emerald-500" /> : <Link2 size={14} />}
+      {copied ? 'Copiado' : 'Copiar link'}
+    </button>
+  );
+}
+
+function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
+  surveyId: string; surveyTitle: string; onClose: () => void; onSent: () => void;
+}) {
+  const defaultSubject = `Tu opinión nos importa — ${surveyTitle}`;
+  const [subject,   setSubject]   = useState(defaultSubject);
   const [rawEmails, setRawEmails] = useState('');
   const [sending,   setSending]   = useState(false);
   const [result,    setResult]    = useState<{ sent: number; failed: number } | null>(null);
@@ -310,10 +337,8 @@ function SendModal({ surveyId, onClose, onSent }: { surveyId: string; onClose: (
     try {
       const { distributionId } = await DistributionsService.create(surveyId, {
         subject,
-        message: message || undefined,
         recipients: emails.map(e => ({ email: e })),
       });
-      // Call Edge Function to send emails
       const { data, error: fnErr } = await supabase.functions.invoke('send-survey', {
         body: { distributionId },
       });
@@ -336,44 +361,80 @@ function SendModal({ surveyId, onClose, onSent }: { surveyId: string; onClose: (
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(184,149,30,0.18)' }}>
           <h2 className="font-bold text-[#0A2463] text-lg flex items-center gap-2" style={{ fontFamily: F }}>
             <Send size={18} className="text-[#D4AF37]" />
-            Enviar encuesta
+            Enviar por correo
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-[#0A2463]/5 rounded-lg transition-colors"><X size={18} className="text-[#0A2463]/40" /></button>
+          <button onClick={onClose} className="p-2 hover:bg-[#0A2463]/5 rounded-lg transition-colors">
+            <X size={18} className="text-[#0A2463]/40" />
+          </button>
         </div>
 
         {result ? (
           <div className="p-8 text-center">
             <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
             <p className="text-lg font-bold text-[#0A2463]" style={{ fontFamily: F }}>¡Enviado!</p>
-            <p className="text-sm text-[#0A2463]/60 mt-1">{result.sent} correos enviados{result.failed > 0 ? `, ${result.failed} fallidos` : ''}</p>
+            <p className="text-sm text-[#0A2463]/60 mt-1">
+              {result.sent} correo{result.sent !== 1 ? 's' : ''} enviado{result.sent !== 1 ? 's' : ''}
+              {result.failed > 0 ? ` · ${result.failed} fallido${result.failed !== 1 ? 's' : ''}` : ''}
+            </p>
             <button className="btn-primary mt-6" onClick={onSent}><CheckCircle size={14} />Listo</button>
           </div>
         ) : (
           <div className="p-6 space-y-4">
+            {/* Asunto */}
             <div>
-              <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">Asunto del correo *</label>
-              <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ej: Tu opinión nos importa — Encuesta de satisfacción" className="input-base mt-1" />
+              <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
+                Asunto del correo *
+              </label>
+              <input
+                type="text"
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                className="input-base mt-1"
+              />
+              <p className="text-[10px] text-[#0A2463]/35 mt-1">
+                Se genera automáticamente desde el título de la encuesta. Puedes editarlo.
+              </p>
             </div>
-            <div>
-              <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">Mensaje personal (opcional)</label>
-              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} placeholder="Hola, te invitamos a compartir tu experiencia..." className="input-base mt-1 resize-none" />
+
+            {/* Info del cuerpo del correo */}
+            <div className="rounded-xl p-3 text-xs text-[#0A2463]/60" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)' }}>
+              <p className="font-bold text-[#0A2463]/80 mb-1">El correo incluye automáticamente:</p>
+              <ul className="space-y-0.5 list-disc list-inside">
+                <li>Saludo personalizado con el nombre del destinatario</li>
+                <li>Invitación a responder la encuesta</li>
+                <li>Botón con el enlace único por persona</li>
+                <li>Identidad visual de Alamex Elevadores</li>
+              </ul>
+              <p className="mt-2 text-[10px] text-[#0A2463]/40">
+                El cuerpo es fijo para mantener consistencia de marca en todas las comunicaciones.
+              </p>
             </div>
+
+            {/* Destinatarios */}
             <div>
-              <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">Destinatarios (uno por línea, o separados por coma) *</label>
+              <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
+                Destinatarios * <span className="normal-case font-normal">(uno por línea, o separados por coma)</span>
+              </label>
               <textarea
                 value={rawEmails}
                 onChange={e => setRawEmails(e.target.value)}
                 rows={5}
-                placeholder="juan@empresa.com&#10;maria@empresa.com&#10;carlos@empresa.com"
+                placeholder={'juan@empresa.com\nmaria@empresa.com\ncarlos@empresa.com'}
                 className="input-base mt-1 resize-none font-mono text-xs"
               />
-              {emails.length > 0 && <p className="text-xs text-[#D4AF37] font-semibold mt-1">{emails.length} email{emails.length !== 1 ? 's' : ''} válido{emails.length !== 1 ? 's' : ''}</p>}
+              {emails.length > 0 && (
+                <p className="text-xs text-[#D4AF37] font-semibold mt-1">
+                  {emails.length} email{emails.length !== 1 ? 's' : ''} válido{emails.length !== 1 ? 's' : ''}
+                </p>
+              )}
             </div>
+
             {error && (
               <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-lg p-3">
                 <AlertCircle size={14} className="shrink-0" />{error}
               </div>
             )}
+
             <div className="flex gap-3 pt-2">
               <button className="btn-ghost flex-1" onClick={onClose}><X size={14} />Cancelar</button>
               <button className="btn-primary flex-1" onClick={send} disabled={sending}>

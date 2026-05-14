@@ -44,7 +44,6 @@ serve(async (req) => {
       const html = buildEmailHtml({
         recipientName: recipient.name,
         surveyTitle:   survey.title,
-        message:       dist.message,
         surveyLink:    trackClickUrl,
         trackOpenUrl,
       });
@@ -87,17 +86,15 @@ serve(async (req) => {
 });
 
 function buildEmailHtml({
-  recipientName, surveyTitle, message, surveyLink, trackOpenUrl,
+  recipientName, surveyTitle, surveyLink, trackOpenUrl,
 }: {
   recipientName: string | null;
   surveyTitle: string;
-  message: string | null | undefined;
   surveyLink: string;
   trackOpenUrl: string;
 }): string {
-  const greeting = recipientName ? `Hola ${recipientName},` : 'Hola,';
-  const customMsg = message
-    ? `<p style="color:#4B5563;font-size:15px;line-height:1.6;margin:0 0 20px">${message}</p>`
+  const greeting = recipientName
+    ? `<p style="color:#111827;font-size:16px;font-weight:600;margin:0 0 20px">Hola ${recipientName},</p>`
     : '';
 
   return `<!DOCTYPE html>
@@ -119,8 +116,7 @@ function buildEmailHtml({
 
   <!-- Body -->
   <tr><td style="background:#ffffff;padding:40px;border-radius:0 0 16px 16px;border:1px solid rgba(212,175,55,0.2)">
-    <p style="color:#111827;font-size:16px;font-weight:600;margin:0 0 16px">${greeting}</p>
-    ${customMsg}
+    ${greeting}
     <p style="color:#4B5563;font-size:15px;line-height:1.6;margin:0 0 28px">
       Te invitamos a compartir tu experiencia con nosotros respondiendo la encuesta
       <strong style="color:#0A2463">"${surveyTitle}"</strong>.

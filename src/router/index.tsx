@@ -14,8 +14,9 @@ import Analytics     from '../features/analytics/Analytics';
 import Settings      from '../features/settings/Settings';
 
 // Páginas públicas
-import SurveyPage    from '../features/public/SurveyPage';
-import ThanksPage    from '../features/public/ThanksPage';
+import SurveyPage      from '../features/public/SurveyPage';
+import ThanksPage      from '../features/public/ThanksPage';
+import PublicLinkPage  from '../features/public/PublicLinkPage';
 
 // Login
 import LoginPage     from '../features/auth/LoginPage';
@@ -34,6 +35,7 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 export const router = createBrowserRouter([
   // ── Rutas públicas ──────────────────────────────────────────────
   { path: '/login',            element: <LoginPage /> },
+  { path: '/s/pub/:surveyId',  element: <PublicLinkPage /> },
   { path: '/s/:token',         element: <SurveyPage /> },
   { path: '/s/:token/gracias', element: <ThanksPage /> },
 

@@ -41,38 +41,90 @@ const db = supabase as any;
 
 export const QuestionsService = {
   async upsertForSurvey(surveyId: string, blocks: BuilderBlock[]) {
-    await db.from('questions').delete().eq('survey_id', surveyId);
+    // Fetch the question IDs that currently exist in the DB for this survey
+    const { data: existing, error: fetchErr } = await db
+      .from('questions').select('id').eq('survey_id', surveyId);
+    if (fetchErr) throw fetchErr;
 
+    const existingIds = new Set<string>(
+      (existing ?? []).map((q: { id: string }) => q.id)
+    );
+    const keptIds = new Set<string>(
+      blocks.filter(b => b.id && existingIds.has(b.id as string)).map(b => b.id as string)
+    );
+
+    // Delete questions that were removed from the builder.
+    // answers.question_id has no ON DELETE CASCADE, so we delete answers first.
+    for (const qId of existingIds) {
+      if (keptIds.has(qId)) continue;
+      await db.from('answers').delete().eq('question_id', qId);
+      const { error } = await db.from('questions').delete().eq('id', qId);
+      if (error) throw error;
+    }
+
+    // Update existing questions and insert new ones, in order
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i];
+      const isExisting = block.id && existingIds.has(block.id as string);
 
       if (isSection(block)) {
-        const { error } = await db.from('questions').insert({
-          survey_id:   surveyId,
-          type:        'section',
-          title:       block.title || 'Nueva sección',
-          description: block.description || null,
-          required:    false,
-          order_index: i,
-          settings:    {},
-        });
-        if (error) throw error;
+        if (isExisting) {
+          const { error } = await db.from('questions').update({
+            title:       block.title || 'Nueva sección',
+            description: block.description || null,
+            order_index: i,
+          }).eq('id', block.id);
+          if (error) throw error;
+        } else {
+          const { error } = await db.from('questions').insert({
+            survey_id:   surveyId,
+            type:        'section',
+            title:       block.title || 'Nueva sección',
+            description: block.description || null,
+            required:    false,
+            order_index: i,
+            settings:    {},
+          });
+          if (error) throw error;
+        }
         continue;
       }
 
-      const { _key: _k, options, id: _id, ...qData } = block;
-      void _k; void _id;
-      const { data: newQ, error: qErr } = await db
-        .from('questions')
-        .insert({ ...qData, survey_id: surveyId, order_index: i })
-        .select()
-        .single();
-      if (qErr) throw qErr;
+      const { _key: _k, options, id: blockId, ...qData } = block;
+      void _k;
 
-      if (options.length > 0) {
-        const { error: oErr } = await db
-          .from('question_options')
-          .insert(
+      if (isExisting) {
+        // Update the question in place — this preserves answers FK references
+        const { error: qErr } = await db.from('questions').update({
+          ...qData,
+          order_index: i,
+        }).eq('id', blockId);
+        if (qErr) throw qErr;
+
+        // Replace options (answers reference question_id, not option_id — safe to delete+reinsert)
+        await db.from('question_options').delete().eq('question_id', blockId);
+        if (options.length > 0) {
+          const { error: oErr } = await db.from('question_options').insert(
+            options.map((o: OptionDraft, oi: number) => ({
+              question_id: blockId,
+              label:       o.label,
+              value:       o.value || o.label.toLowerCase().replace(/\s+/g, '_'),
+              order_index: oi,
+            }))
+          );
+          if (oErr) throw oErr;
+        }
+      } else {
+        // Insert brand-new question
+        const { data: newQ, error: qErr } = await db
+          .from('questions')
+          .insert({ ...qData, survey_id: surveyId, order_index: i })
+          .select()
+          .single();
+        if (qErr) throw qErr;
+
+        if (options.length > 0) {
+          const { error: oErr } = await db.from('question_options').insert(
             options.map((o: OptionDraft, oi: number) => ({
               question_id: newQ.id,
               label:       o.label,
@@ -80,7 +132,8 @@ export const QuestionsService = {
               order_index: oi,
             }))
           );
-        if (oErr) throw oErr;
+          if (oErr) throw oErr;
+        }
       }
     }
   },

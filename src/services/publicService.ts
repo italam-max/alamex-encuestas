@@ -7,6 +7,7 @@ export interface PublicSurveyData {
   recipientId:      string;
   recipientName:    string | null;
   alreadyResponded: boolean;
+  surveyClosed:     boolean;
   questions:        PublicQuestion[];
 }
 
@@ -47,7 +48,9 @@ export const PublicService = {
       .single();
     if (sErr || !survey) return null;
 
-    const questions: PublicQuestion[] = (survey.questions ?? [])
+    const surveyClosed = survey.status !== 'Activa';
+
+    const questions: PublicQuestion[] = surveyClosed ? [] : (survey.questions ?? [])
       .sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index)
       .map((q: {
         id: string; type: string; title: string; description: string | null;
@@ -71,6 +74,7 @@ export const PublicService = {
       recipientId:      recipient.id,
       recipientName:    recipient.name,
       alreadyResponded: recipient.status === 'respondido',
+      surveyClosed,
       questions,
     };
   },
@@ -80,6 +84,19 @@ export const PublicService = {
     recipientId: string,
     answers: { questionId: string; value?: string; values?: string[] }[]
   ) {
+    // Idempotency check: if a response already exists for this recipient,
+    // just ensure the status is marked and return — avoids duplicate rows on retry.
+    const { data: existing } = await db
+      .from('responses')
+      .select('id')
+      .eq('recipient_id', recipientId)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await db.from('recipients').update({ status: 'respondido' }).eq('id', recipientId);
+      return;
+    }
+
     const { data: response, error: respErr } = await db
       .from('responses')
       .insert({ survey_id: surveyId, recipient_id: recipientId })
@@ -99,9 +116,10 @@ export const PublicService = {
       );
     if (ansErr) throw ansErr;
 
-    await db
+    const { error: statusErr } = await db
       .from('recipients')
       .update({ status: 'respondido' })
       .eq('id', recipientId);
+    if (statusErr) throw statusErr;
   },
 };

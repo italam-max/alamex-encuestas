@@ -53,6 +53,7 @@ export default function SurveyBuilder() {
   const [loadingData,    setLoadingData]    = useState(isEdit);
   const [showPreview,    setShowPreview]    = useState(false);
   const [showTypePick,   setShowTypePick]   = useState(false);
+  const titleCardRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -101,7 +102,7 @@ export default function SurveyBuilder() {
     setBlocks(prev => {
       const arr = [...prev];
       const idx = afterKey !== null ? arr.findIndex(b => b._key === afterKey) : arr.length - 1;
-      arr.splice(idx + 1, 0, block);
+      arr.splice(idx === -1 ? arr.length : idx + 1, 0, block);
       return arr;
     });
     setActiveKey(block._key);
@@ -177,15 +178,21 @@ export default function SurveyBuilder() {
         <button className="btn-ghost shrink-0" onClick={() => navigate(-1)}>
           <ArrowLeft size={14} />Volver
         </button>
-        <div className="flex-1 min-w-0">
-          <input
-            value={title}
-            onChange={e => { setTitle(e.target.value); setError(null); }}
-            placeholder="Título de la encuesta…"
-            className="w-full text-base font-bold text-[#0A2463] bg-transparent outline-none placeholder-[#0A2463]/30"
+        <button
+          className="flex-1 min-w-0 text-left"
+          onClick={() => {
+            titleCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            titleCardRef.current?.focus();
+          }}
+          title="Haz clic para editar el título"
+        >
+          <p
+            className={`text-base font-bold truncate ${title ? 'text-[#0A2463]' : 'text-[#0A2463]/35 italic'}`}
             style={{ fontFamily: F }}
-          />
-        </div>
+          >
+            {title || 'Título de la encuesta…'}
+          </p>
+        </button>
         <div className="flex items-center gap-2 shrink-0">
           {error && (
             <span className="hidden sm:flex items-center gap-1 text-xs text-red-500">
@@ -219,8 +226,9 @@ export default function SurveyBuilder() {
           >
             <div className="p-6 space-y-3">
               <input
+                ref={titleCardRef}
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => { setTitle(e.target.value); setError(null); }}
                 placeholder="Título de la encuesta…"
                 className="w-full text-2xl font-black text-[#0A2463] bg-transparent outline-none border-b-2 border-transparent focus:border-[#D4AF37] pb-1 transition-colors placeholder-[#0A2463]/25"
                 style={{ fontFamily: F }}
@@ -255,7 +263,7 @@ export default function SurveyBuilder() {
             </div>
           )}
 
-          {/* Bloques intercalados con AddRow */}
+          {/* Bloques con AddRow entre cada uno */}
           {blocks.map((block, i) => {
             const active   = block._key === activeKey;
             const canUp    = i > 0;
@@ -291,17 +299,13 @@ export default function SurveyBuilder() {
             return (
               <div key={block._key}>
                 {card}
+                <AddRow
+                  onAddQuestion={() => { setInsertAfterKey(block._key); setShowTypePick(true); }}
+                  onAddSection={() => addSection(block._key)}
+                />
               </div>
             );
           })}
-
-          {/* AddRow único al final */}
-          {blocks.length > 0 && (
-            <AddRow
-              onAddQuestion={() => { setInsertAfterKey(null); setShowTypePick(true); }}
-              onAddSection={() => addSection(null)}
-            />
-          )}
         </div>
       </div>
 

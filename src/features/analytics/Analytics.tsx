@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BarChart2, TrendingUp, Users, MessageSquare, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart2, TrendingUp, Users, MessageSquare, Loader2, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { exportSurveyToExcel } from '../../services/exportService';
 
 const F = "'Special Gothic', sans-serif";
 
@@ -8,6 +9,29 @@ interface SurveyStat {
   id: string; title: string; status: string;
   totalSent: number; opened: number; responded: number;
   responseRate: number; openRate: number;
+}
+
+function ExportButton({ surveyId, surveyTitle }: { surveyId: string; surveyTitle: string }) {
+  const [exporting, setExporting] = useState(false);
+  const doExport = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExporting(true);
+    try { await exportSurveyToExcel(surveyId, surveyTitle); }
+    catch (err) { console.error(err); alert('Error al exportar'); }
+    finally { setExporting(false); }
+  };
+  return (
+    <button
+      onClick={doExport}
+      disabled={exporting}
+      title="Exportar a Excel"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 active:scale-95 shrink-0"
+      style={{ background: 'rgba(212,175,55,0.10)', color: '#B8952A', border: '1px solid rgba(212,175,55,0.35)' }}
+    >
+      {exporting ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+      {exporting ? 'Exportando…' : 'Excel'}
+    </button>
+  );
 }
 
 interface DistRow {
@@ -115,37 +139,38 @@ export default function Analytics() {
               <div className="divide-y" style={{ borderColor: 'rgba(184,149,30,0.08)' }}>
                 {stats.map(s => (
                   <div key={s.id}>
-                    <button
-                      className="w-full px-5 py-4 flex items-center gap-4 hover:bg-[#0A2463]/2 transition-colors text-left"
-                      onClick={() => setExpandId(expandId === s.id ? null : s.id)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[#0A2463] text-sm truncate">{s.title}</p>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          {/* Bar apertura */}
-                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden max-w-[120px]">
-                            <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${s.openRate}%` }} />
+                    <div className="px-5 py-4 flex items-center gap-4">
+                      <button
+                        className="flex-1 min-w-0 text-left flex items-center gap-4"
+                        onClick={() => setExpandId(expandId === s.id ? null : s.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[#0A2463] text-sm truncate">{s.title}</p>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden max-w-[120px]">
+                              <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${s.openRate}%` }} />
+                            </div>
+                            <span className="text-[10px] text-amber-600 font-bold">{s.openRate}% apert.</span>
+                            <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden max-w-[120px]">
+                              <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${s.responseRate}%` }} />
+                            </div>
+                            <span className="text-[10px] text-emerald-600 font-bold">{s.responseRate}% resp.</span>
                           </div>
-                          <span className="text-[10px] text-amber-600 font-bold">{s.openRate}% apert.</span>
-                          {/* Bar respuesta */}
-                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden max-w-[120px]">
-                            <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${s.responseRate}%` }} />
+                        </div>
+                        <div className="flex items-center gap-5 shrink-0 text-center">
+                          <div>
+                            <p className="text-sm font-black text-[#0A2463]" style={{ fontFamily: F }}>{s.totalSent}</p>
+                            <p className="text-[10px] text-gray-400">enviados</p>
                           </div>
-                          <span className="text-[10px] text-emerald-600 font-bold">{s.responseRate}% resp.</span>
+                          <div>
+                            <p className="text-sm font-black text-emerald-600" style={{ fontFamily: F }}>{s.responded}</p>
+                            <p className="text-[10px] text-gray-400">respuestas</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-5 shrink-0 text-center">
-                        <div>
-                          <p className="text-sm font-black text-[#0A2463]" style={{ fontFamily: F }}>{s.totalSent}</p>
-                          <p className="text-[10px] text-gray-400">enviados</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-emerald-600" style={{ fontFamily: F }}>{s.responded}</p>
-                          <p className="text-[10px] text-gray-400">respuestas</p>
-                        </div>
-                      </div>
-                      {expandId === s.id ? <ChevronUp size={14} className="text-[#0A2463]/30 shrink-0" /> : <ChevronDown size={14} className="text-[#0A2463]/30 shrink-0" />}
-                    </button>
+                        {expandId === s.id ? <ChevronUp size={14} className="text-[#0A2463]/30 shrink-0" /> : <ChevronDown size={14} className="text-[#0A2463]/30 shrink-0" />}
+                      </button>
+                      <ExportButton surveyId={s.id} surveyTitle={s.title} />
+                    </div>
 
                     {expandId === s.id && (
                       <SurveyAnswerBreakdown surveyId={s.id} />

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, Send, MailOpen, MessageSquare,
   ChevronDown, ChevronUp, Loader2, Plus, X,
   CheckCircle, AlertCircle, Play, Archive, Star, BarChart2,
-  List, CheckSquare, Type, ToggleLeft, Link2, Check,
+  List, CheckSquare, Type, ToggleLeft, Link2, Check, Copy, FileSpreadsheet,
 } from 'lucide-react';
+import { exportSurveyToExcel } from '../../services/exportService';
 import { SurveysService } from '../../services/surveysService';
 import { DistributionsService, type DistributionStats } from '../../services/distributionsService';
 import { supabase } from '../../lib/supabase';
@@ -33,12 +35,13 @@ export default function SurveyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [survey,        setSurvey]        = useState<SurveyFull | null>(null);
-  const [distributions, setDistributions] = useState<DistributionStats[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [showModal,     setShowModal]     = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [expandQ,       setExpandQ]       = useState(false);
+  const [survey,           setSurvey]           = useState<SurveyFull | null>(null);
+  const [distributions,    setDistributions]    = useState<DistributionStats[]>([]);
+  const [loading,          setLoading]          = useState(true);
+  const [showModal,        setShowModal]        = useState(false);
+  const [statusLoading,    setStatusLoading]    = useState(false);
+  const [expandQ,          setExpandQ]          = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -57,9 +60,14 @@ export default function SurveyDetail() {
   const changeStatus = async (status: SurveyStatus) => {
     if (!id) return;
     setStatusLoading(true);
-    await SurveysService.update(id, { status });
-    await load();
-    setStatusLoading(false);
+    try {
+      await SurveysService.update(id, { status });
+      await load();
+    } catch {
+      // load() ya tiene su propio manejo; no hay estado de error adicional aquí
+    } finally {
+      setStatusLoading(false);
+    }
   };
 
   if (loading) return (
@@ -98,9 +106,10 @@ export default function SurveyDetail() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button className="btn-ghost" onClick={() => navigate(`/surveys/${id}/editar`)}><Edit2 size={14} />Editar</button>
+          <ExportDetailButton surveyId={id!} surveyTitle={survey.title} />
           {survey.status === 'Activa' && (
             <>
-              <CopyLinkButton surveyId={id!} baseUrl={baseUrl} />
+              <ShareLinkButton surveyId={id!} baseUrl={baseUrl} onGenerated={load} />
               <button className="btn-primary" onClick={() => setShowModal(true)}><Send size={14} />Enviar por email</button>
             </>
           )}
@@ -127,7 +136,30 @@ export default function SurveyDetail() {
                     <button className="btn-primary" onClick={() => changeStatus('Activa')}><Play size={13} />Activar</button>
                   )}
                   {survey.status === 'Activa' && (
-                    <button className="btn-ghost" onClick={() => changeStatus('Cerrada')}><Archive size={13} />Cerrar</button>
+                    showCloseConfirm ? (
+                      <div className="flex items-center gap-2 animate-fade-in">
+                        <span className="text-xs text-[#0A2463]/60 font-medium shrink-0">¿Cerrar la encuesta?</span>
+                        <button
+                          className="btn-primary shrink-0"
+                          style={{ fontSize: '12px', padding: '6px 14px', background: 'linear-gradient(135deg,#b45309,#92400e)' }}
+                          onClick={() => { changeStatus('Cerrada'); setShowCloseConfirm(false); }}
+                          disabled={statusLoading}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          className="btn-ghost shrink-0"
+                          style={{ fontSize: '12px', padding: '6px 10px' }}
+                          onClick={() => setShowCloseConfirm(false)}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn-ghost" onClick={() => setShowCloseConfirm(true)}>
+                        <Archive size={13} />Cerrar encuesta
+                      </button>
+                    )
                   )}
                   {survey.status === 'Cerrada' && (
                     <button className="btn-ghost" onClick={() => changeStatus('Borrador')}><Edit2 size={13} />Reabrir</button>
@@ -243,7 +275,9 @@ function DistRow({ dist, baseUrl }: { dist: DistributionStats; baseUrl: string }
     <div>
       <button className="w-full px-5 py-3.5 flex items-center gap-4 hover:bg-[#0A2463]/2 transition-colors text-left" onClick={() => setOpen(v => !v)}>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[#0A2463] truncate">{dist.subject}</p>
+          <p className="text-sm font-bold text-[#0A2463] truncate">
+            {dist.subject === '__public_link__' ? 'Links compartidos (WhatsApp)' : dist.subject}
+          </p>
           <p className="text-xs text-[#0A2463]/50">{new Date(dist.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="flex items-center gap-4 shrink-0 text-center">
@@ -273,7 +307,13 @@ function DistRow({ dist, baseUrl }: { dist: DistributionStats; baseUrl: string }
             {dist.recipients.map(r => (
               <div key={r.id} className="flex items-center gap-3 py-1 text-xs">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${r.status === 'respondido' ? 'bg-emerald-500' : r.status === 'abierto' ? 'bg-amber-400' : 'bg-gray-300'}`} />
-                <span className="flex-1 font-medium text-[#0A2463]/70">{r.name ? `${r.name} (${r.email})` : r.email}</span>
+                <span className="flex-1 font-medium text-[#0A2463]/70">
+                  {r.name
+                    ? r.name
+                    : r.email.startsWith('anon-')
+                      ? 'Destinatario anónimo'
+                      : r.email}
+                </span>
                 <span className="text-[#0A2463]/40 capitalize">{r.status}</span>
                 <a
                   href={`${baseUrl}/s/${r.token}`}
@@ -293,24 +333,202 @@ function DistRow({ dist, baseUrl }: { dist: DistributionStats; baseUrl: string }
   );
 }
 
-/* ── Botón copiar link compartible ── */
-function CopyLinkButton({ surveyId, baseUrl }: { surveyId: string; baseUrl: string }) {
-  const [copied, setCopied] = useState(false);
-  const link = `${baseUrl}/s/pub/${surveyId}`;
-  const copy = () => {
-    navigator.clipboard.writeText(link);
+/* ── Botón exportar Excel ── */
+function ExportDetailButton({ surveyId, surveyTitle }: { surveyId: string; surveyTitle: string }) {
+  const [exporting, setExporting] = useState(false);
+  const doExport = async () => {
+    setExporting(true);
+    try { await exportSurveyToExcel(surveyId, surveyTitle); }
+    catch (err) { console.error(err); alert('Error al exportar'); }
+    finally { setExporting(false); }
+  };
+  return (
+    <button onClick={doExport} disabled={exporting} className="btn-ghost flex items-center gap-1.5">
+      {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+      {exporting ? 'Exportando…' : 'Excel'}
+    </button>
+  );
+}
+
+/* ── Botón generar link único con nombre ── */
+function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
+  surveyId: string; baseUrl: string; onGenerated: () => void;
+}) {
+  const [open,         setOpen]         = useState(false);
+  const [name,         setName]         = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [copied,       setCopied]       = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+  const [error,        setError]        = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const close = () => {
+    setOpen(false);
+    setName('');
+    setError(null);
+    setGeneratedUrl(null);
+  };
+
+  const generate = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError('Escribe un nombre'); return; }
+    setLoading(true); setError(null);
+    try {
+      // Buscar o crear la distribución __public_link__
+      const { data: existing } = await (supabase as any)
+        .from('distributions')
+        .select('id')
+        .eq('survey_id', surveyId)
+        .eq('subject', '__public_link__')
+        .maybeSingle();
+
+      let distId: string;
+      if (existing?.id) {
+        distId = existing.id;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: newDist, error: dErr } = await (supabase as any)
+          .from('distributions')
+          .insert({ survey_id: surveyId, subject: '__public_link__', sent_by: user?.id ?? null, sent_at: new Date().toISOString() })
+          .select('id').single();
+        if (dErr) throw dErr;
+        distId = newDist.id;
+      }
+
+      // Crear destinatario con el nombre dado
+      const anonEmail = `anon-${crypto.randomUUID()}@enlace.alamex`;
+      const { data: recipient, error: rErr } = await (supabase as any)
+        .from('recipients')
+        .insert({ distribution_id: distId, email: anonEmail, name: trimmed, status: 'enviado' })
+        .select('token').single();
+      if (rErr) throw rErr;
+
+      const url = `${baseUrl}/s/${recipient.token}`;
+      await navigator.clipboard.writeText(url);
+      setGeneratedUrl(url);
+      setCopied(true);
+      onGenerated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al generar el link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyAgain = async () => {
+    if (!generatedUrl) return;
+    await navigator.clipboard.writeText(generatedUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
   return (
-    <button
-      onClick={copy}
-      className="btn-ghost flex items-center gap-1.5"
-      title="Copiar link para WhatsApp / compartir"
-    >
-      {copied ? <Check size={14} className="text-emerald-500" /> : <Link2 size={14} />}
-      {copied ? 'Copiado' : 'Copiar link'}
-    </button>
+    <>
+      <button
+        onClick={() => { setOpen(true); setCopied(false); setGeneratedUrl(null); }}
+        className="btn-ghost flex items-center gap-1.5"
+        title="Generar link único para compartir por WhatsApp"
+      >
+        <Link2 size={14} />
+        Compartir link
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={overlayRef}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={e => { if (e.target === overlayRef.current) close(); }}
+        >
+          <div
+            className="luxury-glass rounded-2xl border shadow-2xl w-full max-w-sm animate-slide-up"
+            style={{ borderColor: 'rgba(184,149,30,0.30)' }}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(184,149,30,0.18)' }}>
+              <h3 className="font-bold text-[#0A2463] flex items-center gap-2" style={{ fontFamily: F }}>
+                <Link2 size={16} className="text-[#D4AF37]" />
+                Compartir por link
+              </h3>
+              <button onClick={close} className="p-1.5 hover:bg-[#0A2463]/5 rounded-lg transition-colors">
+                <X size={16} className="text-[#0A2463]/40" />
+              </button>
+            </div>
+
+            {generatedUrl ? (
+              /* ── Pantalla de éxito: URL visible ── */
+              <div className="p-5 space-y-4 animate-fade-in">
+                <div
+                  className="flex items-center gap-3 rounded-xl p-3"
+                  style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}
+                >
+                  <Check size={16} className="text-emerald-500 shrink-0" />
+                  <p className="text-sm font-semibold text-emerald-700">Link copiado al portapapeles</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
+                    Link generado para <span className="normal-case font-bold text-[#0A2463]/70">{name}</span>
+                  </label>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <input
+                      readOnly
+                      value={generatedUrl}
+                      className="input-base text-xs font-mono flex-1 cursor-text"
+                      onClick={e => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={copyAgain}
+                      className="btn-ghost shrink-0"
+                      style={{ padding: '8px 10px' }}
+                      title="Copiar de nuevo"
+                    >
+                      {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#0A2463]/40 mt-1.5">
+                    Haz clic en el campo para seleccionar · o usa el botón para copiar de nuevo
+                  </p>
+                </div>
+                <button className="btn-primary w-full justify-center" onClick={close}>
+                  <Check size={14} />Listo
+                </button>
+              </div>
+            ) : (
+              /* ── Formulario: ingresar nombre ── */
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-[#0A2463]/55">
+                  Se genera un link único para esta persona. Pégalo en WhatsApp o donde prefieras.
+                </p>
+                <div>
+                  <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
+                    Nombre del destinatario *
+                  </label>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={name}
+                    onChange={e => { setName(e.target.value); setError(null); }}
+                    onKeyDown={e => { if (e.key === 'Enter') generate(); if (e.key === 'Escape') close(); }}
+                    placeholder="ej: Juan García"
+                    className="input-base mt-1 w-full"
+                  />
+                </div>
+                {error && (
+                  <p className="text-xs text-red-500 flex items-center gap-1.5">
+                    <AlertCircle size={12} />{error}
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <button className="btn-ghost flex-1" onClick={close}><X size={14} />Cancelar</button>
+                  <button className="btn-primary flex-1" onClick={generate} disabled={!name.trim() || loading}>
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+                    {loading ? 'Generando…' : 'Generar link'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      , document.body)}
+    </>
   );
 }
 

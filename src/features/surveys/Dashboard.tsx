@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Sparkles, Activity, TrendingUp, TrendingDown,
-  Users, Plus, Filter, ClipboardList, ChevronRight, Clock, Award,
+  Users, Plus, ClipboardList, ChevronRight, Clock, Award,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSurveys }       from '../../hooks/useSurveys';
@@ -216,9 +216,6 @@ function SurveyTable({
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <button className="btn-ghost shrink-0" style={{ padding: '8px 10px' }}>
-            <Filter size={14} />
-          </button>
         </div>
       </div>
 

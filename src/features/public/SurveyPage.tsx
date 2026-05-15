@@ -47,6 +47,7 @@ export default function SurveyPage() {
     PublicService.getSurveyByToken(token)
       .then(data => {
         if (!data) { setError('Enlace inválido o expirado.'); return; }
+        if (data.surveyClosed) { setError('__closed__'); return; }
         if (data.alreadyResponded) { navigate(`/s/${token}/gracias`, { replace: true }); return; }
         setSurvey(data);
       })
@@ -107,6 +108,18 @@ export default function SurveyPage() {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#F9F7F2]">
       <Loader2 className="animate-spin text-[#D4AF37]" size={32} />
+    </div>
+  );
+
+  if (error === '__closed__') return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9F7F2] p-6 text-center">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212,175,55,0.1)' }}>
+        <AlertCircle size={28} className="text-[#D4AF37]" />
+      </div>
+      <h2 className="text-xl font-bold text-[#0A2463]" style={{ fontFamily: F }}>Encuesta cerrada</h2>
+      <p className="text-sm text-[#0A2463]/60 mt-2 max-w-sm">
+        Esta encuesta ya no está recibiendo respuestas. Gracias por tu interés.
+      </p>
     </div>
   );
 

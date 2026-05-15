@@ -1,8 +1,18 @@
+import { useEffect } from 'react';
 import { CheckCircle } from 'lucide-react';
 
 const F = "'Special Gothic', sans-serif";
+const REDIRECT_URL = 'https://alam.mx';
+const REDIRECT_DELAY_MS = 10_000;
 
 export default function ThanksPage() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.location.href = REDIRECT_URL;
+    }, REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F9F7F2] relative overflow-hidden">
       <div className="absolute inset-0 arabesque-pattern opacity-20 pointer-events-none" />

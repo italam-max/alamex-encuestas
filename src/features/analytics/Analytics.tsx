@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { BarChart2, TrendingUp, Users, MessageSquare, Loader2, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { exportSurveyToExcel } from '../../services/exportService';
-import { isStoredSectionQuestion } from '../../services/questionsService';
 
 const F = "'Special Gothic', sans-serif";
 
@@ -200,12 +199,12 @@ function SurveyAnswerBreakdown({ surveyId }: { surveyId: string }) {
 
       const { data: questions } = await supabase
         .from('questions')
-        .select('id, title, type, settings')
+        .select('id, title, type')
         .eq('survey_id', surveyId)
         .order('order_index');
 
-      type QRow = { id: string; title: string; type: string; settings?: Record<string, unknown> | null };
-      const qs = (questions ?? []).filter(q => !isStoredSectionQuestion(q as QRow)) as QRow[];
+      type QRow = { id: string; title: string; type: string };
+      const qs = (questions ?? []) as QRow[];
 
       const breakdown: Record<string, Record<string, number>> = {};
       for (const resp of (responses ?? []) as unknown as { answers: { question_id: string; value: string | null; values: string[] | null }[] }[]) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, CheckCircle, Loader2, AlertCircle, Star } from 'lucide-react';
 import { PublicService, type PublicSurveyData, type PublicQuestion } from '../../services/publicService';
@@ -42,8 +42,6 @@ export default function SurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!token) return;
     PublicService.getSurveyByToken(token)
@@ -56,10 +54,6 @@ export default function SurveyPage() {
       .catch(() => setError('No se pudo cargar la encuesta. Intenta más tarde.'))
       .finally(() => setLoading(false));
   }, [token, navigate]);
-
-  useEffect(() => {
-    scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [page]);
 
   const pages      = useMemo(() => survey ? buildPages(survey.questions) : [], [survey]);
   const pageItems  = pages[page] ?? [];
@@ -87,6 +81,7 @@ export default function SurveyPage() {
     setError(null);
     if (!isLastPage) {
       setPage(p => p + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     submit();
@@ -111,13 +106,13 @@ export default function SurveyPage() {
 
   /* ── Estados de carga / error ── */
   if (loading) return (
-    <div className="h-full min-h-0 flex items-center justify-center bg-[#F9F7F2]">
+    <div className="min-h-screen flex items-center justify-center bg-[#F9F7F2]">
       <Loader2 className="animate-spin text-[#D4AF37]" size={32} />
     </div>
   );
 
   if (error === '__closed__') return (
-    <div className="h-full min-h-0 flex flex-col items-center justify-center bg-[#F9F7F2] p-6 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9F7F2] p-6 text-center">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212,175,55,0.1)' }}>
         <AlertCircle size={28} className="text-[#D4AF37]" />
       </div>
@@ -129,7 +124,7 @@ export default function SurveyPage() {
   );
 
   if (error && !survey) return (
-    <div className="h-full min-h-0 flex flex-col items-center justify-center bg-[#F9F7F2] p-6 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9F7F2] p-6 text-center">
       <AlertCircle size={40} className="text-red-400 mb-4" />
       <h2 className="text-xl font-bold text-[#0A2463]" style={{ fontFamily: F }}>Oops</h2>
       <p className="text-sm text-[#0A2463]/60 mt-2 max-w-sm">{error}</p>
@@ -139,12 +134,12 @@ export default function SurveyPage() {
   if (!survey) return null;
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-[#F9F7F2] relative">
+    <div className="min-h-screen flex flex-col bg-[#F9F7F2] relative overflow-hidden">
       {/* Fondo */}
       <div className="absolute inset-0 arabesque-pattern opacity-20 pointer-events-none" />
 
-      {/* Barra superior (fuera del scroll; body/#root tienen overflow hidden) */}
-      <div className="relative z-10 shrink-0">
+      {/* Barra superior fija */}
+      <div className="relative z-10 shrink-0 sticky top-0">
         <div
           className="flex items-center justify-between px-6 py-3"
           style={{ background: 'linear-gradient(to right,#051338,#0A2463,#051338)', borderBottom: '1px solid rgba(212,175,55,0.3)' }}
@@ -169,12 +164,8 @@ export default function SurveyPage() {
         </div>
       </div>
 
-      {/* Contenido principal — única zona desplazable */}
-      <div
-        ref={scrollAreaRef}
-        className="relative z-10 flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col"
-      >
-        <div className="flex-1 pt-8 px-4 pb-12 w-full">
+      {/* Contenido principal */}
+      <div className="relative z-10 flex-1 py-8 px-4">
         <div className="max-w-xl mx-auto">
 
           {/* Encabezado de encuesta (primera página) */}
@@ -242,6 +233,7 @@ export default function SurveyPage() {
               onClick={() => {
                 setPage(p => p - 1);
                 setError(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               style={{ opacity: page === 0 ? 0 : 1, pointerEvents: page === 0 ? 'none' : 'auto' }}
             >
@@ -273,34 +265,34 @@ export default function SurveyPage() {
             </div>
           )}
         </div>
-        </div>
-
-        <footer
-          className="relative z-10"
-          style={{ background: 'linear-gradient(to right,#051338,#0A2463,#051338)', borderTop: '1px solid rgba(212,175,55,0.2)' }}
-        >
-          <div className="max-w-xl mx-auto px-6 py-5 text-center">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="h-px flex-1 max-w-[40px]" style={{ background: 'rgba(212,175,55,0.25)' }} />
-              <div
-                className="w-6 h-6 rounded-md flex items-center justify-center text-[#D4AF37] font-black text-sm shrink-0"
-                style={{ background: 'rgba(212,175,55,0.15)', fontFamily: "'Special Gothic', sans-serif" }}
-              >A</div>
-              <div className="h-px flex-1 max-w-[40px]" style={{ background: 'rgba(212,175,55,0.25)' }} />
-            </div>
-            <p className="text-[11px] font-semibold tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Desarrollado y publicado por{' '}
-              <span style={{ color: 'rgba(212,175,55,0.75)', fontWeight: 700 }}>Alamex Elevadores</span>
-            </p>
-            <p className="text-[10px] mt-0.5 tracking-[0.03em]" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              © {new Date().getFullYear()} Alamex Elevadores · Todos los derechos reservados
-            </p>
-            <p className="text-[9px] mt-0.5 uppercase tracking-[0.15em]" style={{ color: 'rgba(255,255,255,0.12)' }}>
-              Alamex IT · Sistema de Encuestas de Satisfacción
-            </p>
-          </div>
-        </footer>
       </div>
+
+      {/* Footer */}
+      <footer
+        className="relative z-10 shrink-0"
+        style={{ background: 'linear-gradient(to right,#051338,#0A2463,#051338)', borderTop: '1px solid rgba(212,175,55,0.2)' }}
+      >
+        <div className="max-w-xl mx-auto px-6 py-5 text-center">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="h-px flex-1 max-w-[40px]" style={{ background: 'rgba(212,175,55,0.25)' }} />
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center text-[#D4AF37] font-black text-sm shrink-0"
+              style={{ background: 'rgba(212,175,55,0.15)', fontFamily: "'Special Gothic', sans-serif" }}
+            >A</div>
+            <div className="h-px flex-1 max-w-[40px]" style={{ background: 'rgba(212,175,55,0.25)' }} />
+          </div>
+          <p className="text-[11px] font-semibold tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Desarrollado y publicado por{' '}
+            <span style={{ color: 'rgba(212,175,55,0.75)', fontWeight: 700 }}>Alamex Elevadores</span>
+          </p>
+          <p className="text-[10px] mt-0.5 tracking-[0.03em]" style={{ color: 'rgba(255,255,255,0.2)' }}>
+            © {new Date().getFullYear()} Alamex Elevadores · Todos los derechos reservados
+          </p>
+          <p className="text-[9px] mt-0.5 uppercase tracking-[0.15em]" style={{ color: 'rgba(255,255,255,0.12)' }}>
+            Alamex IT · Sistema de Encuestas de Satisfacción
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { SurveysService } from '../../services/surveysService';
 import {
-  QuestionsService, emptyQuestion, emptySection, makeKey, isSection, isStoredSectionQuestion,
+  QuestionsService, emptyQuestion, emptySection, makeKey, isSection,
   type QuestionDraft, type SectionDraft, type BuilderBlock, type OptionDraft,
 } from '../../services/questionsService';
 import { useTemplates } from '../../hooks/useTemplates';
@@ -64,7 +64,7 @@ export default function SurveyBuilder() {
       type RawQ = QuestionDraft & { question_options?: OptionDraft[]; type: QuestionType | 'section' };
       const raw = ((survey as unknown as { questions: RawQ[] }).questions ?? []);
       const parsed: BuilderBlock[] = raw.map(q => {
-        if (isStoredSectionQuestion(q)) {
+        if ((q.type as string) === 'section') {
           return { _key: makeKey(), id: q.id, type: 'section' as const, title: q.title, description: q.description ?? '' };
         }
         return {

@@ -32,31 +32,6 @@ export function isSection(b: BuilderBlock): b is SectionDraft {
   return b.type === 'section';
 }
 
-/** BD o API: fila guardada como `section` (migración 003) o `text` + settings.isSection (compatible con cualquier constraint). */
-export function isStoredSectionQuestion(row: {
-  type: string;
-  settings?: Record<string, unknown> | null;
-}): boolean {
-  const s = row.settings as Record<string, unknown> | undefined;
-  return row.type === 'section' || (row.type === 'text' && Boolean(s?.isSection));
-}
-
-function persistedSectionPayload(block: SectionDraft): {
-  type: 'text';
-  title: string;
-  description: string | null;
-  required: boolean;
-  settings: Record<string, unknown>;
-} {
-  return {
-    type: 'text',
-    title: block.title.trim() ? block.title : 'Nueva sección',
-    description: block.description?.trim() ? block.description : null,
-    required: false,
-    settings: { placeholder: '', multiline: false, isSection: true },
-  };
-}
-
 export function emptySection(): SectionDraft {
   return { _key: makeKey(), type: 'section', title: '', description: '' };
 }
@@ -93,18 +68,22 @@ export const QuestionsService = {
       const isExisting = block.id && existingIds.has(block.id as string);
 
       if (isSection(block)) {
-        const persisted = persistedSectionPayload(block);
         if (isExisting) {
           const { error } = await db.from('questions').update({
-            ...persisted,
+            title:       block.title || 'Nueva sección',
+            description: block.description || null,
             order_index: i,
           }).eq('id', block.id);
           if (error) throw error;
         } else {
           const { error } = await db.from('questions').insert({
-            ...persisted,
             survey_id:   surveyId,
+            type:        'section',
+            title:       block.title || 'Nueva sección',
+            description: block.description || null,
+            required:    false,
             order_index: i,
+            settings:    {},
           });
           if (error) throw error;
         }

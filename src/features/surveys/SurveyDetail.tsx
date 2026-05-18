@@ -64,7 +64,7 @@ export default function SurveyDetail() {
       await SurveysService.update(id, { status });
       await load();
     } catch {
-      // load() ya tiene su propio manejo; no hay estado de error adicional aquí
+      // Manejo silencioso
     } finally {
       setStatusLoading(false);
     }
@@ -90,33 +90,51 @@ export default function SurveyDetail() {
   const baseUrl   = import.meta.env.VITE_PUBLIC_URL ?? window.location.origin;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Header */}
+    // CORRECCIÓN DEFINITIVA: Forzamos la altura del contenedor disponible y activamos scroll vertical con soporte táctil
+    <div className="h-full w-full flex flex-col overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
+      
+      {/* Header — Ahora vive dentro del contenedor scrolleable, subirá de forma natural al deslizar en Android */}
       <div
-        className="px-6 py-4 flex items-center justify-between backdrop-blur-md border-b shadow-sm shrink-0 gap-4"
+        className="px-4 py-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between border-b shadow-sm shrink-0 gap-4"
         style={{ background: 'linear-gradient(90deg,rgba(250,252,255,0.84),rgba(255,249,232,0.70))', borderColor: 'rgba(184,149,30,0.24)' }}
       >
-        <button className="btn-ghost shrink-0" onClick={() => navigate(-1)}><ArrowLeft size={14} />Volver</button>
-        <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-lg text-[#0A2463] truncate" style={{ fontFamily: F }}>{survey.title}</h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-[10px] font-black uppercase tracking-[0.08em] px-2 py-0.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>{survey.status}</span>
-            <span className="text-xs text-[#0A2463]/40">{survey.questions?.length ?? 0} preguntas</span>
+        {/* Bloque Izquierdo: Botón Volver e Info de la Encuesta */}
+        <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
+          <button className="btn-ghost shrink-0" onClick={() => navigate(-1)}><ArrowLeft size={14} />Volver</button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-base md:text-lg text-[#0A2463] truncate" style={{ fontFamily: F }}>{survey.title}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`text-[10px] font-black uppercase tracking-[0.08em] px-2 py-0.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>{survey.status}</span>
+              <span className="text-xs text-[#0A2463]/40">{survey.questions?.length ?? 0} preguntas</span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button className="btn-ghost" onClick={() => navigate(`/surveys/${id}/editar`)}><Edit2 size={14} />Editar</button>
-          <ExportDetailButton surveyId={id!} surveyTitle={survey.title} />
+
+        {/* Bloque Derecho: Botones de Acción Adaptables */}
+        <div className="grid grid-cols-2 md:flex md:items-center gap-2 w-full md:w-auto">
+          <button className="btn-ghost flex items-center justify-center w-full md:w-auto" onClick={() => navigate(`/surveys/${id}/editar`)}>
+            <Edit2 size={14} />Editar
+          </button>
+          
+          <div className="flex justify-center [&>button]:w-full md:[&>button]:w-auto">
+            <ExportDetailButton surveyId={id!} surveyTitle={survey.title} />
+          </div>
+
           {survey.status === 'Activa' && (
             <>
-              <ShareLinkButton surveyId={id!} baseUrl={baseUrl} onGenerated={load} />
-              <button className="btn-primary" onClick={() => setShowModal(true)}><Send size={14} />Enviar por email</button>
+              <div className="col-span-2 md:col-span-1 flex justify-center [&>button]:w-full md:[&>button]:w-auto">
+                <ShareLinkButton surveyId={id!} baseUrl={baseUrl} onGenerated={load} />
+              </div>
+              <button className="btn-primary col-span-2 md:col-span-1 flex items-center justify-center w-full md:w-auto" onClick={() => setShowModal(true)}>
+                <Send size={14} />Enviar por email
+              </button>
             </>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      {/* Contenido Principal — Fluye directo debajo de la barra sin bloqueos */}
+      <div className="flex-1 p-4 md:p-6 w-full">
         <div className="max-w-4xl mx-auto space-y-5 animate-slide-up">
 
           {/* Status actions */}
@@ -333,7 +351,6 @@ function DistRow({ dist, baseUrl }: { dist: DistributionStats; baseUrl: string }
   );
 }
 
-/* ── Botón exportar Excel ── */
 function ExportDetailButton({ surveyId, surveyTitle }: { surveyId: string; surveyTitle: string }) {
   const [exporting, setExporting] = useState(false);
   const doExport = async () => {
@@ -343,14 +360,13 @@ function ExportDetailButton({ surveyId, surveyTitle }: { surveyId: string; surve
     finally { setExporting(false); }
   };
   return (
-    <button onClick={doExport} disabled={exporting} className="btn-ghost flex items-center gap-1.5">
+    <button onClick={doExport} disabled={exporting} className="btn-ghost flex items-center justify-center gap-1.5 w-full md:w-auto">
       {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
       {exporting ? 'Exportando…' : 'Excel'}
     </button>
   );
 }
 
-/* ── Botón generar link único con nombre ── */
 function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
   surveyId: string; baseUrl: string; onGenerated: () => void;
 }) {
@@ -374,7 +390,6 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
     if (!trimmed) { setError('Escribe un nombre'); return; }
     setLoading(true); setError(null);
     try {
-      // Buscar o crear la distribución __public_link__
       const { data: existing } = await (supabase as any)
         .from('distributions')
         .select('id')
@@ -395,7 +410,6 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
         distId = newDist.id;
       }
 
-      // Crear destinatario con el nombre dado
       const anonEmail = `anon-${crypto.randomUUID()}@enlace.alamex`;
       const { data: recipient, error: rErr } = await (supabase as any)
         .from('recipients')
@@ -426,7 +440,7 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
     <>
       <button
         onClick={() => { setOpen(true); setCopied(false); setGeneratedUrl(null); }}
-        className="btn-ghost flex items-center gap-1.5"
+        className="btn-ghost flex items-center justify-center gap-1.5 w-full md:w-auto"
         title="Generar link único para compartir por WhatsApp"
       >
         <Link2 size={14} />
@@ -454,7 +468,6 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
             </div>
 
             {generatedUrl ? (
-              /* ── Pantalla de éxito: URL visible ── */
               <div className="p-5 space-y-4 animate-fade-in">
                 <div
                   className="flex items-center gap-3 rounded-xl p-3"
@@ -484,7 +497,7 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
                     </button>
                   </div>
                   <p className="text-[10px] text-[#0A2463]/40 mt-1.5">
-                    Haz clic en el campo para seleccionar · o usa el botón para copiar de nuevo
+                    Haz clic en el field para seleccionar · o usa el botón para copiar de nuevo
                   </p>
                 </div>
                 <button className="btn-primary w-full justify-center" onClick={close}>
@@ -492,7 +505,6 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
                 </button>
               </div>
             ) : (
-              /* ── Formulario: ingresar nombre ── */
               <div className="p-5 space-y-4">
                 <p className="text-xs text-[#0A2463]/55">
                   Se genera un link único para esta persona. Pégalo en WhatsApp o donde prefieras.
@@ -598,7 +610,6 @@ function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
           </div>
         ) : (
           <div className="p-6 space-y-4">
-            {/* Asunto */}
             <div>
               <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
                 Asunto del correo *
@@ -614,7 +625,6 @@ function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
               </p>
             </div>
 
-            {/* Info del cuerpo del correo */}
             <div className="rounded-xl p-3 text-xs text-[#0A2463]/60" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)' }}>
               <p className="font-bold text-[#0A2463]/80 mb-1">El correo incluye automáticamente:</p>
               <ul className="space-y-0.5 list-disc list-inside">
@@ -628,7 +638,6 @@ function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
               </p>
             </div>
 
-            {/* Destinatarios */}
             <div>
               <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
                 Destinatarios * <span className="normal-case font-normal">(uno por línea, o separados por coma)</span>

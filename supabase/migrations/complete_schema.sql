@@ -258,9 +258,20 @@ create policy "Sistema y público actualizan recipients"
 -- ── Responses ────────────────────────────────────────────────────
 drop policy if exists "Recipient lee su propia response via token" on public.responses;
 drop policy if exists "Cualquiera puede insertar response (página pública)" on public.responses;
+drop policy if exists "Público lee responses para enviar encuesta" on public.responses;
+drop policy if exists "Autenticados ven responses" on public.responses;
+drop policy if exists "Cualquiera inserta response" on public.responses;
 
 create policy "Autenticados ven responses"
   on public.responses for select using (auth.role() = 'authenticated');
+create policy "Público lee responses para enviar encuesta"
+  on public.responses for select
+  using (
+    exists (
+      select 1 from public.recipients r
+      where r.id = recipient_id
+    )
+  );
 create policy "Cualquiera inserta response"
   on public.responses for insert with check (true);
 

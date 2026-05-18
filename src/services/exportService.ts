@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { supabase } from '../lib/supabase';
+import { isStoredSectionQuestion } from './questionsService';
 
 // ── Paleta de marca ───────────────────────────────────────────
 const C = {
@@ -83,7 +84,13 @@ interface RawResponse {
   recipients: { name: string | null; email: string; status: string } | null;
   answers: RawAnswer[];
 }
-interface QuestionRow { id: string; title: string; type: string; order_index: number }
+interface QuestionRow {
+  id: string;
+  title: string;
+  type: string;
+  order_index: number;
+  settings?: Record<string, unknown> | null;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -97,9 +104,8 @@ export async function exportSurveyToExcel(surveyId: string, surveyTitle: string)
       .eq('survey_id', surveyId)
       .order('submitted_at', { ascending: true }),
     db.from('questions')
-      .select('id, title, type, order_index')
+      .select('id, title, type, order_index, settings')
       .eq('survey_id', surveyId)
-      .neq('type', 'section')
       .order('order_index', { ascending: true }),
     db.from('distributions')
       .select('id, recipients(status)')
@@ -107,7 +113,7 @@ export async function exportSurveyToExcel(surveyId: string, surveyTitle: string)
   ]);
 
   const responses  = (respRes.data ?? []) as RawResponse[];
-  const questions  = (qRes.data   ?? []) as QuestionRow[];
+  const questions  = ((qRes.data ?? []) as QuestionRow[]).filter(q => !isStoredSectionQuestion(q));
 
   // KPIs desde distribuciones
   let totalSent = 0, totalOpened = 0;

@@ -5,10 +5,11 @@ import {
   ArrowLeft, Edit2, Send, MailOpen, MessageSquare,
   ChevronDown, ChevronUp, Loader2, Plus, X,
   CheckCircle, AlertCircle, Play, Archive, Star, BarChart2,
-  List, CheckSquare, Type, ToggleLeft, Link2, Check, Copy, FileSpreadsheet,
+  List, CheckSquare, Type, ToggleLeft, Link2, Check, Copy, FileSpreadsheet, LayoutList,
 } from 'lucide-react';
 import { exportSurveyToExcel } from '../../services/exportService';
 import { SurveysService } from '../../services/surveysService';
+import { isStoredSectionQuestion } from '../../services/questionsService';
 import { DistributionsService, type DistributionStats } from '../../services/distributionsService';
 import { supabase } from '../../lib/supabase';
 import type { SurveyStatus, QuestionType } from '../../types';
@@ -28,7 +29,15 @@ const TYPE_ICON: Record<QuestionType, React.ComponentType<{ size?: number; class
 interface SurveyFull {
   id: string; title: string; description: string | null; status: SurveyStatus;
   created_at: string; updated_at: string; template_id: string | null;
-  questions: { id: string; type: QuestionType; title: string; required: boolean; order_index: number; options: { label: string }[] }[];
+  questions: {
+    id: string;
+    type: QuestionType;
+    title: string;
+    required: boolean;
+    order_index: number;
+    settings?: Record<string, unknown> | null;
+    options: { label: string }[];
+  }[];
 }
 
 export default function SurveyDetail() {
@@ -204,7 +213,9 @@ export default function SurveyDetail() {
             {expandQ && (
               <div className="border-t divide-y" style={{ borderColor: 'rgba(184,149,30,0.12)' }}>
                 {(survey.questions ?? []).map((q, i) => {
-                  const Icon = TYPE_ICON[q.type] ?? Type;
+                  const Icon = isStoredSectionQuestion({ type: q.type, settings: q.settings })
+                    ? LayoutList
+                    : (TYPE_ICON[q.type] ?? Type);
                   return (
                     <div key={q.id} className="px-5 py-3 flex items-start gap-3">
                       <span className="text-xs font-black text-[#0A2463]/30 w-5 shrink-0 mt-0.5">{i + 1}.</span>

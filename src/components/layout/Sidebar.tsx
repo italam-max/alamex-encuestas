@@ -85,7 +85,7 @@ export default function Sidebar({ expanded, currentView, onNavigate, onClose, mo
           className="text-xs font-mono whitespace-nowrap overflow-hidden transition-all duration-200"
           style={{ color: 'rgba(255,255,255,0.35)', opacity: expanded ? 1 : 0 }}
         >
-          1.0.0 | ALAMEX
+          1.0.1.1 | ALAMEX
         </p>
         {!expanded && (
           <div className="w-4 h-0.5 rounded-full mx-auto" style={{ background: 'rgba(255,255,255,0.1)' }} />

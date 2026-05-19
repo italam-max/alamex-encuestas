@@ -134,12 +134,12 @@ export default function SurveyPage() {
   if (!survey) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9F7F2] relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#F9F7F2] relative overflow-x-hidden">
       {/* Fondo */}
       <div className="absolute inset-0 arabesque-pattern opacity-20 pointer-events-none" />
 
       {/* Barra superior fija */}
-      <div className="relative z-10 shrink-0 sticky top-0">
+      <div className="relative z-10 shrink-0">
         <div
           className="flex items-center justify-between px-6 py-3"
           style={{ background: 'linear-gradient(to right,#051338,#0A2463,#051338)', borderBottom: '1px solid rgba(212,175,55,0.3)' }}

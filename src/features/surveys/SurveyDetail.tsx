@@ -379,10 +379,12 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const close = () => {
+    const wasGenerated = !!generatedUrl;
     setOpen(false);
     setName('');
     setError(null);
     setGeneratedUrl(null);
+    if (wasGenerated) onGenerated();
   };
 
   const generate = async () => {
@@ -418,10 +420,13 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
       if (rErr) throw rErr;
 
       const url = `${baseUrl}/s/${recipient.token}`;
-      await navigator.clipboard.writeText(url);
       setGeneratedUrl(url);
-      setCopied(true);
-      onGenerated();
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+      } catch {
+        setCopied(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al generar el link');
     } finally {
@@ -471,10 +476,14 @@ function ShareLinkButton({ surveyId, baseUrl, onGenerated }: {
               <div className="p-5 space-y-4 animate-fade-in">
                 <div
                   className="flex items-center gap-3 rounded-xl p-3"
-                  style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}
+                  style={copied
+                    ? { background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }
+                    : { background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}
                 >
-                  <Check size={16} className="text-emerald-500 shrink-0" />
-                  <p className="text-sm font-semibold text-emerald-700">Link copiado al portapapeles</p>
+                  <Check size={16} className={copied ? 'text-emerald-500 shrink-0' : 'text-[#D4AF37] shrink-0'} />
+                  <p className={`text-sm font-semibold ${copied ? 'text-emerald-700' : 'text-[#0A2463]/70'}`}>
+                    {copied ? 'Link copiado al portapapeles' : 'Link generado — cópialo con el botón'}
+                  </p>
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
@@ -581,7 +590,7 @@ function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
     }
   };
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
@@ -673,5 +682,5 @@ function SendModal({ surveyId, surveyTitle, onClose, onSent }: {
         )}
       </div>
     </div>
-  );
+  , document.body);
 }

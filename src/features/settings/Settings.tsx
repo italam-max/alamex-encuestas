@@ -158,7 +158,7 @@ export default function Settings() {
           <div className="luxury-glass rounded-xl border p-5 shadow-sm" style={{ borderColor: 'rgba(184,149,30,0.20)' }}>
             <p className="text-xs font-black text-[#0A2463]/40 uppercase tracking-[0.08em] mb-3">Sobre la aplicación</p>
             <div className="space-y-1.5 text-xs text-[#0A2463]/60">
-              <p>Alamex Encuestas de Satisfacción · v1.0</p>
+              <p>Alamex Encuestas de Satisfacción · v1.0.1.1</p>
               <p>React 19 + TypeScript + Tailwind CSS v4 + Supabase</p>
               <p>Envío de correos: ZeptoMail · Hospedaje: Netlify</p>
             </div>

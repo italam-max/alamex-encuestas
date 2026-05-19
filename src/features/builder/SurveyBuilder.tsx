@@ -562,8 +562,11 @@ function LiveAnswerPreview({ q }: { q: QuestionDraft }) {
   const [val, setVal] = useState<string | string[]>('');
   const meta = TYPE_META[q.type];
 
-  // Resetea al cambiar de pregunta o de tipo
-  useEffect(() => { setVal(''); }, [q._key, q.type]);
+  // Resetea al cambiar de pregunta, tipo, o cuando cambian las opciones
+  const optionsSig = (q.type === 'multiple' || q.type === 'checkbox')
+    ? q.options.map(o => o._key + o.value).join('|') : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setVal(''); }, [q._key, q.type, optionsSig]);
 
   const hasOptions = (q.type === 'multiple' || q.type === 'checkbox') && q.options.length === 0;
 
@@ -656,7 +659,7 @@ function InlinePreviewInput({ q, value, onChange }: {
     return (
       <div className="space-y-2">
         {q.options.map(o => (
-          <button key={o._key} onClick={() => onChange(o.value)}
+          <button key={'prev-' + o._key} onClick={() => onChange(o.value)}
             className="w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all"
             style={{
               background:  v === o.value ? meta.color + '15' : 'white',
@@ -677,7 +680,7 @@ function InlinePreviewInput({ q, value, onChange }: {
         {q.options.map(o => {
           const checked = selected.includes(o.value);
           return (
-            <button key={o._key} onClick={() => toggle(o.value)}
+            <button key={'prev-' + o._key} onClick={() => toggle(o.value)}
               className="w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all flex items-center gap-2.5"
               style={{
                 background:  checked ? meta.color + '12' : 'white',
@@ -764,7 +767,7 @@ function MiniAnswerPreview({ question }: { question: QuestionDraft }) {
     return (
       <div className="mt-2.5 space-y-1">
         {shown.map(o => (
-          <div key={o._key} className="flex items-center gap-2 text-xs text-[#0A2463]/40">
+          <div key={'mini-' + o._key} className="flex items-center gap-2 text-xs text-[#0A2463]/40">
             <div className={`w-3.5 h-3.5 border border-gray-200 shrink-0 ${isCheck ? 'rounded-sm' : 'rounded-full'} bg-gray-50`} />
             <span className="truncate">{o.label}</span>
           </div>
@@ -902,30 +905,146 @@ function QuestionSettings({ q, onChange }: { q: QuestionDraft; onChange: (p: Par
   if (q.type === 'multiple' || q.type === 'checkbox') {
     const c  = TYPE_META[q.type].color;
     const bg = TYPE_META[q.type].bg;
-    const addOption    = () => onChange({ options: [...q.options, { _key: makeKey(), label: `Opción ${q.options.length + 1}`, value: `opcion_${q.options.length + 1}` }] });
+    const isEval = q.options.some(o => o.is_correct);
+
+    const addOption = () => onChange({
+      options: [...q.options, {
+        _key: makeKey(),
+        label: `Opción ${q.options.length + 1}`,
+        value: `opcion_${q.options.length + 1}`,
+        is_correct: false,
+      }],
+    });
+
     const removeOption = (key: string) => onChange({ options: q.options.filter(o => o._key !== key) });
-    const updateOption = (key: string, label: string) =>
-      onChange({ options: q.options.map(o => o._key === key ? { ...o, label, value: label.toLowerCase().replace(/\s+/g, '_') } : o) });
+
+    const updateOption = (key: string, patch: Partial<OptionDraft>) =>
+      onChange({
+        options: q.options.map(o => o._key === key ? { ...o, ...patch } : o),
+      });
+
+    const toggleCorrect = (key: string) => {
+      // Para "multiple" (radio): solo una puede ser correcta
+      // Para "checkbox": toggle individual
+      onChange({
+        options: q.options.map(o =>
+          q.type === 'multiple'
+            ? { ...o, is_correct: o._key === key ? !o.is_correct : false }
+            : o._key === key ? { ...o, is_correct: !o.is_correct } : o
+        ),
+      });
+    };
+
+    const anyCorrect = q.options.some(o => o.is_correct);
+
     return (
-      <div className="p-4 rounded-xl space-y-2.5" style={{ background: bg + '50' }}>
-        <label className="text-[10px] font-black text-[#0A2463]/45 uppercase tracking-[0.08em]">Opciones de respuesta</label>
-        {q.options.map((o, idx) => (
-          <div key={o._key} className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full border-2 shrink-0" style={{ borderColor: c + '50' }} />
-            <input
-              type="text" value={o.label}
-              onChange={e => updateOption(o._key, e.target.value)}
-              placeholder={`Opción ${idx + 1}…`}
-              className="flex-1 text-sm text-[#0A2463] bg-transparent outline-none border-b border-gray-200 focus:border-[#D4AF37]/50 pb-0.5 transition-colors placeholder-[#0A2463]/25"
-            />
-            <button onClick={() => removeOption(o._key)} disabled={q.options.length <= 1} className="p-1 hover:bg-red-50 rounded disabled:opacity-20">
-              <X size={13} className="text-red-400" />
-            </button>
+      <div className="rounded-xl overflow-hidden border" style={{ background: bg + '40', borderColor: c + '30' }}>
+
+        {/* ── Cabecera ── */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: c + '25', background: bg + '60' }}>
+          <span className="text-[10px] font-black text-[#0A2463]/50 uppercase tracking-[0.08em]">
+            Opciones de respuesta
+          </span>
+          {/* Badge modo evaluación */}
+          <span
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-all"
+            style={{
+              background: anyCorrect ? c + '18' : 'rgba(0,0,0,0.05)',
+              color: anyCorrect ? c : 'rgba(10,36,99,0.35)',
+            }}
+          >
+            {anyCorrect ? '✓ Modo evaluación activo' : 'Marca ✓ para calificar'}
+          </span>
+        </div>
+
+        {/* ── Tabla de opciones ── */}
+        <div className="px-4 pt-3 pb-2 space-y-1.5">
+
+          {/* Encabezados de columna */}
+          <div className="grid gap-2 pb-1 border-b" style={{
+            gridTemplateColumns: '16px 1fr 32px 28px',
+            borderColor: c + '20',
+          }}>
+            {['', 'Texto de la opción', <span key="c" title="Respuesta correcta">✓</span>, ''].map((h, i) => (
+              <span key={i} className="text-[9px] font-black text-[#0A2463]/35 uppercase tracking-[0.08em] flex items-center">{h}</span>
+            ))}
           </div>
-        ))}
-        <button onClick={addOption} className="flex items-center gap-2 text-xs font-semibold mt-1 py-1" style={{ color: c }}>
-          <Plus size={12} />Añadir opción
-        </button>
+
+          {q.options.map((o, idx) => (
+            <div
+              key={'edit-' + o._key}
+              className="grid gap-2 items-center py-1.5 px-2 rounded-lg transition-all"
+              style={{
+                gridTemplateColumns: '16px 1fr 32px 28px',
+                background: o.is_correct ? c + '12' : 'transparent',
+                outline: o.is_correct ? `1.5px solid ${c}30` : 'none',
+              }}
+            >
+              {/* Indicador tipo */}
+              <div
+                className="w-3.5 h-3.5 shrink-0"
+                style={{
+                  borderRadius: q.type === 'checkbox' ? '3px' : '50%',
+                  border: `2px solid ${c}60`,
+                  background: o.is_correct ? c + '25' : 'transparent',
+                }}
+              />
+
+              {/* Label */}
+              <input
+                type="text"
+                value={o.label}
+                onChange={e => updateOption(o._key, { label: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                placeholder={`Opción ${idx + 1}…`}
+                className="text-sm text-[#0A2463] bg-transparent outline-none border-b border-transparent focus:border-[#D4AF37]/50 pb-0.5 transition-colors placeholder-[#0A2463]/25 min-w-0"
+              />
+
+              {/* is_correct toggle */}
+              <button
+                onClick={() => toggleCorrect(o._key)}
+                title={o.is_correct ? 'Quitar respuesta correcta' : 'Marcar como correcta'}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black transition-all border"
+                style={{
+                  background: o.is_correct ? c : 'white',
+                  borderColor: o.is_correct ? c : c + '40',
+                  color: o.is_correct ? 'white' : c + '80',
+                  transform: o.is_correct ? 'scale(1.1)' : 'scale(1)',
+                  boxShadow: o.is_correct ? `0 2px 8px ${c}40` : 'none',
+                }}
+              >✓</button>
+
+              {/* Eliminar */}
+              <button
+                onClick={() => removeOption(o._key)}
+                disabled={q.options.length <= 1}
+                className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 disabled:opacity-20 transition-colors"
+              >
+                <X size={12} className="text-red-400" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Footer: añadir opción ── */}
+        <div className="px-4 pb-3">
+          <button
+            onClick={addOption}
+            className="flex items-center gap-2 text-xs font-bold py-1 transition-colors"
+            style={{ color: c }}
+          >
+            <Plus size={12} />Añadir opción
+          </button>
+        </div>
+
+        {/* ── Hint evaluación ── */}
+        {isEval && (
+          <div className="mx-4 mb-3 flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-medium" style={{ background: c + '10', color: c }}>
+            <Check size={11} />
+            {q.type === 'multiple'
+              ? 'Solo una opción puede ser la respuesta correcta.'
+              : 'Pueden marcarse varias opciones como correctas.'}
+          </div>
+        )}
       </div>
     );
   }
@@ -1244,11 +1363,11 @@ function PreviewQuestionInput({ q, value, onChange }: { q: QuestionDraft; value:
       </div>
     );
   }
-  if (q.type === 'multiple') return <div className="space-y-2">{q.options.map(o => <button key={o._key} onClick={() => onChange(o.value)} className={`w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all ${v === o.value ? 'bg-[#0A2463] border-[#0A2463] text-white' : 'bg-white border-gray-200 text-[#0A2463] hover:border-[#D4AF37]/50'}`}>{o.label}</button>)}</div>;
+  if (q.type === 'multiple') return <div className="space-y-2">{q.options.map(o => <button key={'modal-' + o._key} onClick={() => onChange(o.value)} className={`w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all ${v === o.value ? 'bg-[#0A2463] border-[#0A2463] text-white' : 'bg-white border-gray-200 text-[#0A2463] hover:border-[#D4AF37]/50'}`}>{o.label}</button>)}</div>;
   if (q.type === 'checkbox') {
     const selected = Array.isArray(value) ? (value as string[]) : [];
     const toggle = (val: string) => onChange(selected.includes(val) ? selected.filter(s => s !== val) : [...selected, val]);
-    return <div className="space-y-2">{q.options.map(o => { const checked = selected.includes(o.value); return <button key={o._key} onClick={() => toggle(o.value)} className={`w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all flex items-center gap-2.5 ${checked ? 'bg-[#0A2463]/8 border-[#0A2463]' : 'bg-white border-gray-200 hover:border-[#D4AF37]/50'}`}><span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${checked ? 'bg-[#D4AF37] border-[#D4AF37]' : 'border-gray-300'}`}>{checked && <Check size={10} className="text-white" strokeWidth={3} />}</span>{o.label}</button>; })}</div>;
+    return <div className="space-y-2">{q.options.map(o => { const checked = selected.includes(o.value); return <button key={'modal-' + o._key} onClick={() => toggle(o.value)} className={`w-full text-left px-3 py-2.5 rounded-xl border-2 font-medium text-sm transition-all flex items-center gap-2.5 ${checked ? 'bg-[#0A2463]/8 border-[#0A2463]' : 'bg-white border-gray-200 hover:border-[#D4AF37]/50'}`}><span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${checked ? 'bg-[#D4AF37] border-[#D4AF37]' : 'border-gray-300'}`}>{checked && <Check size={10} className="text-white" strokeWidth={3} />}</span>{o.label}</button>; })}</div>;
   }
   if (q.type === 'yesno') return <div className="flex gap-3">{[{ label: 'Sí', val: 'si' }, { label: 'No', val: 'no' }].map(({ label, val: bv }) => <button key={bv} onClick={() => onChange(bv)} className={`flex-1 py-3 rounded-xl font-bold text-base border-2 transition-all ${v === bv ? bv === 'si' ? 'bg-emerald-500 border-emerald-500 text-white shadow' : 'bg-red-500 border-red-500 text-white shadow' : 'bg-white border-gray-200 text-[#0A2463] hover:border-[#D4AF37]/50'}`}>{label}</button>)}</div>;
   if (q.type === 'text') {

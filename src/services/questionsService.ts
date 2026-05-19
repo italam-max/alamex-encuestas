@@ -5,6 +5,7 @@ export interface OptionDraft {
   _key: string;
   label: string;
   value: string;
+  is_correct?: boolean;
 }
 
 export interface QuestionDraft {
@@ -110,6 +111,7 @@ export const QuestionsService = {
               label:       o.label,
               value:       o.value || o.label.toLowerCase().replace(/\s+/g, '_'),
               order_index: oi,
+              is_correct:  o.is_correct ?? false,
             }))
           );
           if (oErr) throw oErr;
@@ -130,6 +132,7 @@ export const QuestionsService = {
               label:       o.label,
               value:       o.value || o.label.toLowerCase().replace(/\s+/g, '_'),
               order_index: oi,
+              is_correct:  o.is_correct ?? false,
             }))
           );
           if (oErr) throw oErr;
@@ -152,7 +155,7 @@ export function emptyQuestion(type: QuestionType = 'rating'): QuestionDraft {
     required: true,
     settings: defaultSettings(type),
     options: type === 'multiple' || type === 'checkbox'
-      ? [{ _key: makeKey(), label: 'Opción 1', value: 'opcion_1' }]
+      ? [{ _key: makeKey(), label: 'Opción 1', value: 'opcion_1', is_correct: false }]
       : [],
   };
 }

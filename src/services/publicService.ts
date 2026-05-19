@@ -1,4 +1,10 @@
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente anónimo sin sesión — funciona en cualquier navegador sin login
+const anonSupabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+);
 
 export interface PublicSurveyData {
   surveyId:         string;
@@ -19,11 +25,11 @@ export interface PublicQuestion {
   required:    boolean;
   order_index: number;
   settings:    Record<string, unknown>;
-  options:     { id: string; label: string; value: string; order_index: number }[];
+  options:     { id: string; label: string; value: string; order_index: number; is_correct: boolean }[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = anonSupabase as any;
 
 export const PublicService = {
   async getSurveyByToken(token: string): Promise<PublicSurveyData | null> {
@@ -55,7 +61,7 @@ export const PublicService = {
       .map((q: {
         id: string; type: string; title: string; description: string | null;
         required: boolean; order_index: number; settings: Record<string, unknown>;
-        question_options: { id: string; label: string; value: string; order_index: number }[];
+        question_options: { id: string; label: string; value: string; order_index: number; is_correct: boolean }[];
       }) => ({
         id:          q.id,
         type:        q.type,
